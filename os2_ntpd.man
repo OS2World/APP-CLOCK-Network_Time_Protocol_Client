@@ -1,0 +1,526 @@
+                           User's Guide to OS2_NTPD,
+                   Network Time Protocol Client for OS/2 Warp
+                           Release 1.4, January 20, 2015
+
+                            originally written by
+                               Bruce M. Penrod
+
+                                maintained by
+                    Steven H. Levine (steve53@earthlink.net)
+
+
+I.  Introduction
+
+OS2_NTPD is a 32-bit, multi-threaded, text mode, NTP client application that
+runs in a Presentation Manager VIO text window or can be run detached.  It
+requires either OS/2 2.1 with TCP/IP version 2.0 or OS/2 version 3.0 or 4.0
+(aka WARP or WARP Connect) to operate. It must reside on an OS/2 compatible
+volume.  The following three files must be present:
+
+1)  os2_ntpd.exe       The main program.
+
+2)  portio.dll         A dynamic link library which gives os2_ntpd.exe
+                       access to the I/O ports and thereby the real time
+                       clock chip. It must reside in a directory included in
+                       the LIBPATH= statement of the config.sys.
+
+3)  cfg_data           An data file containing the list of NTP servers
+                       to poll and the initial polling
+                       interval.  This file is required unless
+                       OS2_NTPD is run in single server mode.  This file
+                       must reside in the current working directory.
+
+In addition, tcp32dll.dll and so32dll.dll must be present on the system in a
+directory which is included in the LIBPATH= statement in the config.sys.
+
+After OS2_NTPD has been executed the first time, these additional files will be
+created in the working directory:
+
+1)  rtc_type           A data file containing the type of real time clock
+                       chip present on the system board.  There are two
+                       different types,  indicated by a value of either
+                       0 or 500 in this file.
+
+2)  drift              A data file containing two data items - the NTP
+                       timestamp rounded to whole seconds of the last
+                       correction that was made to the real time clock
+                       and the fractional frequency offset of the real
+                       time clock timebase.  A positive means that the
+                       system clock is fast.  It may take several hours
+                       for this file to appear the first time.
+
+3)  suspects           When debugging is enabled, data file containing
+                       server reply packets which differ from the client
+                       ensemble clock by more than 250 ms. This file may
+                       grow without bound, so it should be checked and
+                       deleted from time to time.  The format of these
+                       packets is identical to that which is displayed
+                       on the user interface screen)
+
+In addition, if logging is turned on, then a log file with name equal to
+the NTP seconds (seconds since Jan 1, 1900) in hexadecimal at the time
+the log file was first opened and the extension ".log"  is created.  For
+example a typical log file name might be:
+
+  b5afc01a.log
+
+This log file contains a list of the NTP servers which were present in
+the cfg_data file when the program was first executed, followed by an NTP
+timestamp column which is followed by three columns for each server of
+statistics on the time received from that server.  These statistics are
+the current raw measurement of that (server - client), the mean of these
+raw measurements taken over approximately twenty samples, and the
+standard deviation of these raw measurements.
+
+After the statistics for each of the servers come columns which contain
+the ensemble statistics.  The first ensemble statistic is the ensemble,
+or weighted average of all of the (server - client) raw measurements.
+This is followed by the standard deviation of the ensemble.  Next is the
+phase locked loop filter output value, followed by the fractional
+frequency offset of the local clock timebase, followed finally by the
+actual clock correction in seconds applied to the system clock.
+
+
+II.  Installation
+
+*********************************IMPORTANT************************************
+If you are upgrading from version 1.0, you MUST replace both the os2_ntpd.exe
+and the portio.dll files.  The version of portio.dll included with version 1.0
+IS NOT COMPATIBLE with version 1.2.
+******************************************************************************
+
+Installation is simple, just create a directory and unzip the
+distribution file, into it.  In addition, check the system config.sys
+file on the OS/2 boot partition and make sure that the line:
+
+  IOPL=YES
+
+is present.  If it is not or is set equal to NO, change it.  OS2_NTPD
+MUST HAVE ACCESS to I/O ports in order to read and set the system real
+time clock chip.  As an alternative to providing broad IOPL access,
+specific access to certain executables is possible, for example:
+
+  IOPL=os2_ntpd.exe
+
+is also OK.
+
+Since NTP is based on UTC time, it will be necessary to set the
+environment variable TZ so that the local offset to UTC may be
+maintained when OS2_NTPD is operating on the system clock.  A statement
+like this must appear somewhere in your config.sys:
+
+  SET TZ=PST+8PDT
+
+This example is appropriate for users on the west coast of the USA who
+operate with Pacific Standard Time (PST) or Pacific Daylight Time (PDT) and
+are 8 hours behind UTC when PST is in effect.  If daylight time is not used,
+leave off the last three characters:
+
+  SET TZ=PST+8
+
+To set TZ for more complicated situations, use the following format:
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³                                                                              ³
+³ >>ÄÄSETÄÄTZÄÄ=ÄÄSSSÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ> ³
+³                      ÀÄÂÄÄÄÂÄÄhÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÙ                        ³
+³                        ÃÄ+Ä´     ÀÄ:ÄÄmÄÄÂÄÄÄÄÄÄÂÄÙ                          ³
+³                        ÀÄÁÄÙ             ÀÄ:ÄÄsÄÙ                            ³
+³                                                                              ³
+³ >ÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ>< ³
+³    ÀÄDDDÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÙ                               ³
+³           ÀÄ,sm,sw,sd,st,em,ew,ed,et,shiftÄÙ                                 ³
+³                                                                              ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+The values for the TZ variable are defined below.  The default values given are
+for the built-in "C" locale defined by the ANSI C standard.
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Table 1. TZ Environment Variable Parameters                                  ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ VARIABLE     ³ DESCRIPTION                                 ³ DEFAULT VALUE   ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ SSS          ³ Standard-timezone identifier.  It must be   ³ EST             ³
+³              ³ three characters, must begin with a letter, ³                 ³
+³              ³ and can contain spaces.                     ³                 ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ h, m, s      ³ The variable h specifies the difference (in ³ 5               ³
+³              ³ hours) between the standard time zone and   ³                 ³
+³              ³ coordinated universal time (CUT), formerly  ³                 ³
+³              ³ Greenwich mean time (GMT).  You can         ³                 ³
+³              ³ optionally use m to specify minutes after   ³                 ³
+³              ³ the hour, and s to specify seconds after    ³                 ³
+³              ³ the minute.  A positive number denotes time ³                 ³
+³              ³ zones west of the Greenwich meridian; a     ³                 ³
+³              ³ negative number denotes time zones east of  ³                 ³
+³              ³ the Greenwich meridian.  The number must be ³                 ³
+³              ³ an integer value.                           ³                 ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ DDD          ³ Daylight saving time (DST) zone identifier. ³ EDT             ³
+³              ³ It must be three characters, must begin     ³                 ³
+³              ³ with a letter, and can contain spaces.      ³                 ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ sm           ³ Starting month (1 to 12) of DST.            ³ 4               ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ sw           ³ Starting week (-4 to 4) of DST.  Use nega-  ³ 1               ³
+³              ³ tive numbers to count back from the last    ³                 ³
+³              ³ week of the month (-1) and positive numbers ³                 ³
+³              ³ to count from the first week (1).           ³                 ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ sd           ³ Starting day of DST.                        ³ 0               ³
+³              ³ 0 to 6 if sw != 0                           ³                 ³
+³              ³ 1 to 31 if sw = 0                           ³                 ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ st           ³ Starting time (in seconds) of DST.          ³ 3600            ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ em           ³ Ending month (1 to 12) of DST.              ³ 10              ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ ew           ³ Ending week (-4 to 4) of DST.  Use negative ³ -1              ³
+³              ³ numbers to count back from the last week of ³                 ³
+³              ³ the month (-1) and positive numbers to      ³                 ³
+³              ³ count from the first week (1).              ³                 ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ ed           ³ Ending day of DST.                          ³ 0               ³
+³              ³ 0 to 6 if ew != 0                           ³                 ³
+³              ³ 1 to 31 if ew = 0                           ³                 ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ et           ³ Ending time of DST (in seconds).            ³ 7200            ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ shift        ³ Amount of time change (in seconds).         ³ 3600            ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+For example:
+
+   SET TZ=CST6CDT
+
+sets the standard time zone to CST, the daylight saving time zone to CDT, and
+sets a difference of 6 hours between CST and CUT. It does not set any values for
+the start and end date of daylight saving time or the time shifted.
+
+When TZ is not present, the default is EST5EDT, the "C" locale value. When only
+the standard time zone is specified, the default value of n (difference in hours
+from GMT) is 0 instead of 5.
+
+If you give values for any of sm, sw, sd, st, em, ew, ed, et, or shift, you must
+give values for all of them. Otherwise the entire statement is considered not
+valid, and the time zone information is not changed.
+
+
+III. About the Real Time Clock
+
+For system timekeeping and task scheduling, OS/2 uses the Motorola MC146818 RTC
+chip which IBM originally designed into the AT machines.  Prior to FixPak 26 for
+Warp v3 and FixPak 1 for Warp v4, OS/2 set the chip up to generate an interrupt
+32 times a second, or every 31.25 ms.  With the application of these FixPaks,
+the chip is now set up to generate an interrupt 128 times a second, or every
+7.8125 ms.  OS2_NTPD performs system clock corrections by actually resetting
+the RTC chip at the appropriate time so as to step the time in increments as
+small as one of the original ticks, or 31.25 ms, forward or backward.  This
+works beautifully for motherboards which emulate the Motorola RTC chip faith-
+fully.  However, some motherboards incorrectly emulated the chip and this
+causes hiccups in the time adjustments performed by OS2_NTPD on occasion.  For-
+tunately, since the advent of the Pentium based motherboards with predominantly
+Intel chipsets, this problem is not as widespread and is probably limited only
+to older 486 systems.  I have never seen a Pentium machine with an incorrectly
+implemented RTC.
+
+The difference is in how the chips behave after divisor reset, the method of
+timestepping used by OS2_NTPD.  Truly compatible implementations update the next
+second 500 ms after divisor reset.  The other implementations I have seen
+update it immediately following divisor reset.  This causes problems when a
+small, single tick correction is being made and the actual time that it is
+performed slips by a tick due to pre-emption, etc.  This slip causes a whole
+second error to occur instead of one tick.  I have not successfully eliminated
+these occurrences yet, however they are rare.  They seem to be worst on heavily
+loaded systems and systems running dial-up serial modems using PPP, which runs
+at a very high priority.
+
+Following the initial execution of OS2_NTPD, the data file rtc_type will hold
+the results of its check for the type of RTC chip in your system.  If the value
+stored in rtc_type is zero, then your RTC is 100% compatible and you should
+have no problems such as I have described.  If the value is 500, then you
+should expect to experience the one second hiccups from time to time if your
+system is underpowered or heavily loaded or are accessing the Internet via dial-
+up modem.
+
+
+IV.  Operation
+
+OS2_NTPD is a typical OS/2 text mode (VIO) application and can be executed
+in one of two ways:
+
+1)  From the command line using a single server, with these arguments as so:
+
+os2_ntpd.exe [ntp server(name or dotted decimal)
+              initial polling interval (integer seconds)
+              number of requests to send (integer)]
+
+where:  "ntp server" is the IP address of the NTP server (i.e.
+         tick.usno.navy.mil or 206.54.0.21).
+
+        "initial polling interval" is the number of seconds between requests
+         to the server.  It should be a power of two, such as 2, 4, 8, 16 etc.
+
+        "number of requests to send" is how many times to request time from
+         the server, if 0 is entered then requests will be sent indefinitely.
+
+All of these arguments must be separated by spaces. The first argument is
+required.  The initial polling interval defaults to omitted.  The number
+of requests defaults to 1 if omitted.
+
+2)  From the command line with no arguments.  When executed this way, OS2_NTPD
+looks for the data file cfg_data in the current directory.  If it is not found,
+OS2_NTPD will display an error message and terminate.  If the cfg_data file
+exists and is correctly formatted, then OS2_NTPD will display the contents of
+the file in the window and begin normal operation.
+
+A typical cfg_data file might contain:
+
+cfg_data
+poll interval = 16
+tick.usno.navy.mil
+tock.usno.navy.mil
+time.nist.gov
+206.54.0.21
+
+Each line must be terminated by a CR and LF.  The cfg_data and poll internal
+lines are required and must appear in the order shown.  Up to 22 NTP servers
+may be listed following the poll_interval line.
+
+Of course, a Workplace Shell program object may be created allowing execution
+via mouse clicks, and a copy of the program object could be dragged to the
+Startup Folder to allow automatic invocation following each boot up.
+
+It is also possible to run OS2_NTPD detached.  When run detached, status will
+be written to the standard output.  This output will be discarded unless the
+standard output is redirected when os2_ntpd is started.  When running
+detached, the -l command line option is available to increase the verbosity
+of the status output.  The default verbosity reports errors and reports the
+current poll interval every six hours.  With the -l option, the status
+output will report every clock update.  This will result in a large log file
+and is primarily a debugging tool.
+
+To run OS2_NTPD detached, you can use a command line like:
+
+  detach OS2_NTPD >%LOGFILES%\os2_ntpd.log
+
+V. The OS2_NTPD User Interface
+
+After reading the cfg_data file and displaying the server list, the
+program will initialize the user interface screen.  This screen is a
+standard 25 line by 80 character text mode window, divided into three
+regions.  The top region consists of thirteen lines which display
+decoded packets, the list of NTP servers and other data that can be
+requested.  The next region consists of three lines displaying output
+status information such as timeouts, reply packets which are indicating
+an alarm state, ensemble statistics, etc.  The bottom five lines
+display the 12 item user menu, not all of which are in use at this time.
+
+Menu items can be selected by function key number or by alphabetic
+hotkey.  The hotkey letters are highlighted in the menu text.  The
+hotkeys are useful when OS2_NTPD is run via VNC or telnet and the
+function keys are not well supported.
+
+The current set of available menu items and the assoicated function keys
+are:
+
+F1   Show Next Pkt -- Pressing this key will display the decoded packet
+                      received from the first server from which a reply was
+                      received in the current polling interval.  Pressing it
+                      again will display the next one and so on. Underneath the
+                      raw packet information are displayed the server specific
+                      timing statistics:  the current server - client offset
+                      measurement in seconds, the standard deviation of those
+                      measurements, and the maximum and minimum measurements.
+
+F2   Show Prev Pkt -- Pressing this key will display the decoded packet
+                      received from the last server from which a reply was
+                      received in the current polling interval.  Pressing it
+                      again will display the previous one and so on.
+
+F6   Quick Sync    -- Pressing this key will enable an instantaneous "jam sync"
+                      of the system clock based on the next ensemble of replies
+                      received from the active servers.  The default behavior
+                      if this key is not pressed is to propagate the ensembled
+                      replies through a phase locked loop filter which will
+                      slowly bring the system clock in line with the NTP
+                      servers.  The Quick Sync function is similar to NTPDATE
+                      in that it is used to establish a starting
+                      synchronization which is then refined based on further
+                      averaging of NTP server replies and gradual corrections.
+
+F7  Show Peers     -- Pressing this key will display a list of the peers which
+                      were active during the current polling interval.
+
+F10  Enable Debug  -- Pressing this key will enable logging of suspect reply
+                      packets to the file "suspects".  This log file will be
+                      opened for appending and closed after each polling
+                      interval.   Pressing the key again will suspend logging
+                      to this file.
+
+F11  Open LogFile  -- Pressing this key the first time will open a log file that
+                      is named with the current ntp second.  This log file will
+                      be opened for appending and closed after each polling
+                      interval and contains the reduced timing data from each
+                      of the servers in the cfg_data file, as well as ensemble
+                      statistics.    Once the log file is open, pressing the key
+                      again will close the file permanently.
+
+F12  About         -- Pressing this key will display information about this
+                      program.
+
+VI.  Theory of Operation
+
+Interested users should consider downloading the RFCs relating to network
+timing written by David Mills of the University of Delaware.  These cover in
+gory detail the inner workings of the NTP.  Mills also maintains a website,
+http: //www.eecis.udel.edu/~ntp/ which is a vast repository of NTP related lore
+and entertainment.  OS2_NTPD operates based on version 3.0 of the NTP as
+described in RFC 1305.  Here I will only mention that the cornerstone of the
+NTP is server diversity.  The benefits of statistical ensembling and clustering
+are not available if only one server is being polled. OS2_NTPD allows up to 22
+servers to be configured for this reason.
+
+OS2_NTPD maintains stability measurements on each server being used to set the
+client clock.  These stability measures are used to calculate weighting of the
+individual server's contribution to the overall ensemble.  Noisy servers
+receive less weighting, quiet ones more.  Further, due to the ordering of
+the procedures, when a measurement comes in from a server, its weight is
+updated first,  then the measurement is added into the ensemble based on
+the new weight.  This provides a measure of immunity from bad server replies
+since they are de-weighted prior to being used.
+
+Once an ensemble measurement has been synthesized, it is passed to the phase
+locked loop which controls the system clock.  The phase locked loop implements
+averaging of the NTP server reply data across time as opposed to the ensembling
+algorithm which implements averaging across multiple servers.  Initially the
+PLL operates fairly quickly and updates the RTC at the rate specified by the
+initial polling interval parameter provided in the cfg_data file or from the
+command line.  Once the client clock has been pulled within a tick (31.25 ms)
+then the polling interval is lengthened by a factor of two.  Each time the
+ensemble measurement is within a tick, the polling interval is again lengthened
+until it reaches 256 seconds, beyond which it does not extend. After the
+polling interval has reached 256 seconds, PLL averaging is further extended by
+modifying the coefficients in the digital loop filter.  These are allowed to
+extend until the PLL equivalent averaging time has reached 13401 seconds.
+
+The main reason for setting the averaging time so long is to allow an accurate
+measurement of the frequency offset of the client clock timebase.  This
+frequency offset has been referred to as "skew" in the Mills literature.
+Unfortunately, the file created by the Unix versions of NTP containing
+this skew term is called NTPDRIFT.  Drift has actually been defined by the
+global time and frequency community to mean the change in frequency of an
+oscillator as a function of time, not its change in phase.  So as not to
+confuse those who have dealt with the various ports of Mills' NTP client
+daemons, I have retained the " drift" naming convention for the file which
+holds the fractional frequency offset of the client clock timebase.
+
+OS2_NTPD uses this "drift" to extrapolate the behavior of the client clock when
+no servers are available, so that corrections may continue to be made to the
+clock to compensate for its assumed constant frequency error.  In addition,
+after a power outage,  OS2_NTPD checks the timestamp in the "drift" file to
+determine the length of the outage and will apply a correction based on the
+outage duration and the fractional frequency offset which was stored in the
+"drift" file.  This approach is not fool proof, since corrections made
+manually or by other programs during the outage of OS2_NTPD operation will not
+be known to OS2_NTPD.  Also, the frequency of the crystal oscillator inside of
+the PC will be different when the power is applied as compared to when it is
+not since the temperature inside the PC is dependent upon this.
+
+
+VII. Current Known Deficiencies in this version of the OS2_NTPD Client NTP:
+
+1) The Leap Indicator bits are currently used only to detect server alarm
+condition.  No attempt is made to transparently implement any leap second event
+at the correct time.  This may be fixed in the future when more servers
+properly indicate leap second events in these bits, which is not the case now!
+
+2) The movement of time from Standard to Daylight and vice versa currently
+propagates through the PLL loop filter and so takes a slow journey--maybe an
+hour or so to get there.  Will fix this eventually, but recommend that you do
+not run your workstations on anything but Standard time, be it local or UTC.
+
+2) No preference is currently given to servers based on their operating NTP
+stratum level or root dispersion.
+
+
+VIII. Version History
+
+Changes in version 1.4 of OS2_NTPD
+
+  - Write logs file to LOGFILES if defined
+  - Add support for running detached.
+  - Optimize code paths.
+  - Add more error logic.
+  - Add fix to suppress DST changeover oscillation.
+  - Ensure running codepage 437.
+
+Changes in version 1.3 of OS2_NTPD
+
+  - Port to OpenWatcom.
+  - Add support for menu hotkeys.
+
+Bugfixes included in version 1.2 of OS2_NTPD
+
+This was Bruce Penrod's final release.
+
+1)    This version fixes the problems which were introduced when IBM changed
+the tick rate of the RTC from 32 Hz to 128 Hz.  The program now detects the
+rate at which the RTC has been set to generate an interrupt and operates ap-
+propriately for either case.  One would think that the new higher rate would
+allow an improvement in the setting of the clock, however the opposite is the
+case.  With the introduction of the higher tick rate, timetagging resolution
+has been improved, so that calls to ftime() now return a precision of 10 ms.
+Unfortunately, the other half of the problem, the ability to have something
+done at a certain time using a timer function like DosSleep(), has not been
+improved to the 10 ms level.  The net effect is that there is more uncertainty
+now in the setting of the RTC chip, so that typical performance is still at the
+30 ms level.
+
+Bugfixes included in version 1.1 of OS2_NTPD:
+
+1)    Some versions of OS/2 Warp Connect with various FixPacks at about 17 were
+unable to run version 1.0 of the program, aborting with a "Stack Overflow"
+message immediately following start-up.  I changed the compiler from Borland
+1.5 to IBM VAC++ 3.0, increased the stacksize in the threads and rearranged the
+operation of the threads to eliminate the possibility of clean-up not being
+performed. These systems are now able to run the program but there are still
+some questions concerning memory leakage and system lock-ups on those same
+systems.  I will be welcoming any feedback as to whether I have fixed those
+problems!
+
+2)    Borland did not do a very good job on the TZ environment variable in
+their tzset() routine, choosing to have it handle only North American time zone
+changes properly.  Since changing to the IBM compiler for this version,
+OS2_NTPD fully supports the TZ environment variable as described in this manual
+so that both standard time and daylight time may work anywhere in the world if
+the TZ variable is set up properly.
+
+3)    The REF ID field of the NTP packet was not being decoded properly with
+servers operating at Stratum 2 or higher in version 1.0 of OS2_NTPD.  It should
+have shown the IP address of the server to which that server is peered rather
+than the ascii clock type code like GPS or ACTS as would be done for Stratum 1
+servers.
+
+4)    Some users with non-compatible RTC implementations have experienced the
+one second hiccups in the RTC correction process that is described in this
+manual.  In version 1.1, I have managed to reduce them to an acceptable
+level on my machines by giving up some of the resolution of the correction.
+What this amounts to is that when I detect the RTC type, if it is a non-
+compatible one, I perform two tick clock adjustments instead of single tick
+adjustments.  Due to the subtleties of the adjustment process, this still allows
+me to maintain an accuracy of about one tick, or 31.25 ms but greatly reduces
+the frequency of the hiccups.
+
+5)    Fixed a potential string overflow problem when extremely large offsets
+between the local clock and a server were being displayed.
+
+DISCLAIMER!!!
+
+The author makes no claims concerning suitability of this program for any use.
+OS2_NTPD is offered for your use "as is", with no expressed or implied
+warranties or guarantees of any kind.  The author will assume no liability for
+damages either from the direct use of this product or as a consequence of the
+use of this product.
+
